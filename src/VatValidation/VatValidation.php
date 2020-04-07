@@ -49,17 +49,36 @@ class VatValidation
 
     private function formatVatNumber($number)
     {
-        $pattern = '/^(AT|BE|BG|CY|CZ|DE|DK|EE|EL|ES|FI|FR|GB|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[A-Z0-9]{6,20}$/';
+        // Pattern according to one found on http://ec.europa.eu/taxation_customs/vies/checkVatService.wsdl
+        $pattern = '/^(AT|BE|BG|CY|CZ|DE|DK|EE|EL|ES|FI|FR|GB|HR|HU|IE|IT|LT|LU|LV|' .
+            'MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z\+\*\.]{2,12}$/';
         $number = strtoupper($number);
 
         if (preg_match($pattern, $number)) {
             $this->countryCode = substr($number, 0, 2);
             $this->vatNumber = substr($number, 2, strlen($number) - 2);
-
+            $this->specialCases();
+            
             return true;
         }
 
         throw new WrongVatNumberFormatException();
+    }
+
+    private function specialCases()
+    {
+        switch ($this->countryCode) {
+            case 'AT':
+                if (substr($this->vatNumber, 0, 1) =! 'U') {
+                    $this->vatNumber = 'U' . $this->vatNumber;
+                }
+                break;
+            case 'BE':
+                if (($len = strlen($this->vatNumber)) < 10) {
+                    $this->vatNumber = str_repeat('0', 10 - $len) . $this->vatNumber;
+                }
+                break;
+        }
     }
 
     private function callWebService()
